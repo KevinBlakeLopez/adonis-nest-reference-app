@@ -5,6 +5,9 @@ import { App } from 'supertest/types.js';
 import { AppModule } from './../src/app.module.js';
 
 describe('AppController (e2e)', () => {
+  if (!process.env.DATABASE_URL) {
+    throw new Error('DATABASE_URL is required');
+  }
   let app: INestApplication<App>;
 
   beforeEach(async () => {
