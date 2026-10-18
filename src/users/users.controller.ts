@@ -1,16 +1,20 @@
-import { Body, Controller, Post, UseFilters } from '@nestjs/common';
+import { Body, Controller, Post } from '@nestjs/common';
+import {
+  VineValidationPipe,
+  type VineOutput,
+} from '../vine/vine-validation.pipe.js';
 import { registerUser } from './register-user.js';
 import { UsersService } from './users.service.js';
-import { ValidationExceptionFilter } from './validation-exception.filter.js';
 
 @Controller('users')
-@UseFilters(ValidationExceptionFilter)
 export class UsersController {
   constructor(private readonly users: UsersService) {}
 
   @Post()
-  async create(@Body() body: unknown) {
-    const input = await registerUser.validate(body);
+  create(
+    @Body(new VineValidationPipe(registerUser))
+    input: VineOutput<typeof registerUser>,
+  ) {
     return this.users.register(input);
   }
 }

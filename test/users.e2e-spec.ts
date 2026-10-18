@@ -42,17 +42,36 @@ describe('POST /users', () => {
     expect(JSON.stringify(response.body)).not.toContain(password);
     expect(response.body).not.toHaveProperty('passwordHash');
 
-    const stored = await orm.em.fork().findOneOrFail(User, { email: 'ada@example.com' });
+    const stored = await orm.em
+      .fork()
+      .findOneOrFail(User, { email: 'ada@example.com' });
     expect(stored.passwordHash).not.toBe(password);
     expect(stored.passwordHash.startsWith('$scrypt$')).toBe(true);
     expect(JSON.stringify(response.body)).not.toContain(stored.passwordHash);
   });
 
   it('rejects invalid input and writes nothing', async () => {
-    await request(app.getHttpServer())
+    const response = await request(app.getHttpServer())
       .post('/users')
       .send({ email: 'not-an-email', password: 'short' })
       .expect(422);
+
+    expect(response.body).toEqual({
+      statusCode: 422,
+      errors: [
+        {
+          message: 'The email field must be a valid email address',
+          rule: 'email',
+          field: 'email',
+        },
+        {
+          message: 'The password field must have at least 8 characters',
+          rule: 'minLength',
+          field: 'password',
+          meta: { min: 8 },
+        },
+      ],
+    });
 
     const count = await orm.em.fork().count(User);
     expect(count).toBe(1);
@@ -64,6 +83,8 @@ describe('POST /users', () => {
       .send({ email: 'ada@example.com', password: 'another-secret' })
       .expect(409);
 
-    expect(await orm.em.fork().count(User, { email: 'ada@example.com' })).toBe(1);
+    expect(await orm.em.fork().count(User, { email: 'ada@example.com' })).toBe(
+      1,
+    );
   });
 });
