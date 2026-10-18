@@ -21,5 +21,5 @@ const applied = await applyMigrations();
 if (applied.length === 0) {
   console.log('No pending migrations');
 } else {
-  console.log(applied.map((migration) => migration.name).join('\n'));
+  console.log(applied.join('\n'));
 }

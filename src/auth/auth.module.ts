@@ -9,6 +9,7 @@ import { AuthService } from './auth.service.js';
 @Module({
   imports: [AppConfigModule],
   controllers: [AuthController],
+  exports: [AuthService],
   providers: [
     AuthService,
     PasswordHasher,

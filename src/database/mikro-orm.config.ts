@@ -1,11 +1,12 @@
 import { Migrator } from '@mikro-orm/migrations';
 import { defineConfig } from '@mikro-orm/postgresql';
+import { Note } from '../notes/note.entity.js';
 import { User } from '../users/user.entity.js';
 
 export function mikroOrmConfig(config: { databaseUrl: string }) {
   return defineConfig({
     clientUrl: config.databaseUrl,
-    entities: [User],
+    entities: [User, Note],
     extensions: [Migrator],
     migrations: {
       path: './dist/database/migrations',
