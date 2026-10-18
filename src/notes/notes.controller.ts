@@ -8,10 +8,11 @@ import {
   ParseIntPipe,
   Patch,
   Post,
-  Req,
+  UseGuards,
 } from '@nestjs/common';
-import type { Request } from 'express';
-import { AuthService } from '../auth/auth.service.js';
+import { CurrentUser } from '../auth/current-user.decorator.js';
+import type { PublicUser } from '../auth/auth.service.js';
+import { AuthenticatedGuard } from '../auth/authenticated.guard.js';
 import {
   VineValidationPipe,
   type VineOutput,
@@ -20,54 +21,45 @@ import { createNote, updateNote } from './note-input.js';
 import { NotesService } from './notes.service.js';
 
 @Controller('notes')
+@UseGuards(AuthenticatedGuard)
 export class NotesController {
-  constructor(
-    private readonly notes: NotesService,
-    private readonly auth: AuthService,
-  ) {}
+  constructor(private readonly notes: NotesService) {}
 
   @Post()
   create(
-    @Req() request: Request,
+    @CurrentUser() user: PublicUser,
     @Body(new VineValidationPipe(createNote))
     input: VineOutput<typeof createNote>,
   ) {
-    return this.withUser(request, (userId) => this.notes.create(userId, input));
+    return this.notes.create(user.id, input);
   }
 
   @Get()
-  list(@Req() request: Request) {
-    return this.withUser(request, (userId) => this.notes.list(userId));
+  list(@CurrentUser() user: PublicUser) {
+    return this.notes.list(user.id);
   }
 
   @Get(':id')
-  get(@Req() request: Request, @Param('id', ParseIntPipe) id: number) {
-    return this.withUser(request, (userId) => this.notes.get(userId, id));
+  get(@CurrentUser() user: PublicUser, @Param('id', ParseIntPipe) id: number) {
+    return this.notes.get(user.id, id);
   }
 
   @Patch(':id')
   update(
-    @Req() request: Request,
+    @CurrentUser() user: PublicUser,
     @Param('id', ParseIntPipe) id: number,
     @Body(new VineValidationPipe(updateNote))
     input: VineOutput<typeof updateNote>,
   ) {
-    return this.withUser(request, (userId) =>
-      this.notes.update(userId, id, input),
-    );
+    return this.notes.update(user.id, id, input);
   }
 
   @Delete(':id')
   @HttpCode(204)
-  delete(@Req() request: Request, @Param('id', ParseIntPipe) id: number) {
-    return this.withUser(request, (userId) => this.notes.delete(userId, id));
-  }
-
-  private async withUser<T>(
-    request: Request,
-    action: (userId: number) => Promise<T>,
-  ): Promise<T> {
-    const user = await this.auth.currentUser(request);
-    return action(user.id);
+  delete(
+    @CurrentUser() user: PublicUser,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.notes.delete(user.id, id);
   }
 }

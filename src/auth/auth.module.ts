@@ -5,13 +5,15 @@ import { CsrfGuard } from '../csrf/csrf.guard.js';
 import { PasswordHasher } from '../hash/password-hasher.js';
 import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
+import { AuthenticatedGuard } from './authenticated.guard.js';
 
 @Module({
   imports: [AppConfigModule],
   controllers: [AuthController],
-  exports: [AuthService],
+  exports: [AuthService, AuthenticatedGuard],
   providers: [
     AuthService,
+    AuthenticatedGuard,
     PasswordHasher,
     {
       provide: APP_GUARD,
