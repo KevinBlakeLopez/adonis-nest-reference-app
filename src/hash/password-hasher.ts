@@ -9,4 +9,8 @@ export class PasswordHasher {
   make(plain: string): Promise<string> {
     return this.hash.make(plain);
   }
+
+  verify(hashedValue: string, plainValue: string): Promise<boolean> {
+    return this.hash.verify(hashedValue, plainValue);
+  }
 }

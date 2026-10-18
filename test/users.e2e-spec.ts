@@ -3,12 +3,16 @@ import { INestApplication } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import request from 'supertest';
 import { App } from 'supertest/types.js';
+import { configureApp } from '../src/configure-app.js';
 import { AppModule } from '../src/app.module.js';
 import { User } from '../src/users/user.entity.js';
+import { resetDatabase } from './reset-database.js';
 
 describe('POST /users', () => {
   let app: INestApplication<App>;
   let orm: MikroORM;
+  let agent: ReturnType<typeof request.agent>;
+  let csrfToken: string;
 
   beforeAll(async () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
@@ -16,12 +20,13 @@ describe('POST /users', () => {
     }).compile();
 
     app = moduleFixture.createNestApplication();
+    configureApp(app);
     await app.init();
     orm = app.get(MikroORM);
-    const connection = orm.em.getConnection();
-    await connection.execute('drop schema if exists public cascade');
-    await connection.execute('create schema public');
-    await orm.migrator.up();
+    await resetDatabase(orm);
+    agent = request.agent(app.getHttpServer());
+    const csrf = await agent.get('/auth/csrf').expect(200);
+    csrfToken = csrf.body.csrfToken;
   });
 
   afterAll(async () => {
@@ -30,8 +35,9 @@ describe('POST /users', () => {
 
   it('registers a user and stores a hash', async () => {
     const password = 'correct-horse';
-    const response = await request(app.getHttpServer())
+    const response = await agent
       .post('/users')
+      .set('X-CSRF-Token', csrfToken)
       .send({ email: 'ada@example.com', password })
       .expect(201);
 
@@ -51,8 +57,9 @@ describe('POST /users', () => {
   });
 
   it('rejects invalid input and writes nothing', async () => {
-    const response = await request(app.getHttpServer())
+    const response = await agent
       .post('/users')
+      .set('X-CSRF-Token', csrfToken)
       .send({ email: 'not-an-email', password: 'short' })
       .expect(422);
 
@@ -78,8 +85,9 @@ describe('POST /users', () => {
   });
 
   it('rejects a duplicate email and keeps a single row', async () => {
-    await request(app.getHttpServer())
+    await agent
       .post('/users')
+      .set('X-CSRF-Token', csrfToken)
       .send({ email: 'ada@example.com', password: 'another-secret' })
       .expect(409);
 

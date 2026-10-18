@@ -7,5 +7,8 @@ export default defineConfig({
     root: './',
     include: ['**/*.e2e-spec.ts'],
     fileParallelism: false,
+    env: {
+      SESSION_SECRET: 'test-only-session-secret-32b-min',
+    },
   },
 });

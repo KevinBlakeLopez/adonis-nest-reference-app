@@ -31,9 +31,11 @@
 $ pnpm install
 ```
 
-## Database migrations
+## Deployment
 
-Set `DATABASE_URL`, then apply migrations once, as a deployment step, before starting the new application instances:
+Set `DATABASE_URL` and `SESSION_SECRET` in the environment. `SESSION_SECRET` must be at least 32 characters. It signs the session cookie. Do not commit it.
+
+Apply migrations once, before starting the new application instances:
 
 ```bash
 $ DATABASE_URL=postgres://postgres:postgres@127.0.0.1:55440/adonis_nest pnpm migration:up
@@ -41,7 +43,11 @@ $ DATABASE_URL=postgres://postgres:postgres@127.0.0.1:55440/adonis_nest pnpm mig
 
 Do not run that command in every replica. MikroORM does not serialize concurrent migrators. If a run fails while another migrator may have been active, inspect `mikro_orm_migrations` and the schema before running it again. A `23505` error does not by itself mean the other run finished.
 
-Application startup does not migrate.
+Application startup does not migrate. The migrations create `users` and `session`. The session store does not create its table.
+
+Terminate HTTPS at one reverse proxy. Forward `X-Forwarded-Proto: https` and the public `Host`. In production the session cookie is `Secure`, and it is set only when that forwarded protocol is `https`.
+
+The app trusts one proxy hop (`trust proxy` is `1`, not `true`). The Node port must not be reachable except through that proxy, because a direct client can still set `X-Forwarded-Proto`. The origin check uses `Host`, not `X-Forwarded-Host`.
 
 ## Compile and run the project
 
