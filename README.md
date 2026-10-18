@@ -33,9 +33,9 @@ $ pnpm install
 
 ## Deployment
 
-Set `DATABASE_URL` and `SESSION_SECRET` in the environment. `SESSION_SECRET` must be at least 32 characters. It signs the session cookie. Do not commit it.
+Set `DATABASE_URL` and `SESSION_SECRET` in the environment. `SESSION_SECRET` must be at least 32 characters. It signs the session cookie. Do not commit it. Startup validates both before it opens a port. Invalid configuration names the variable and does not print the secret or the database URL. `NODE_ENV` may be omitted, `development`, `test`, or `production`. Any other value fails startup.
 
-Apply migrations once, before starting the new application instances:
+Apply migrations once, before starting the new application instances. `pnpm migration:up` validates `DATABASE_URL` only. It does not require `SESSION_SECRET`, `PORT`, or `TRUST_PROXY`.
 
 ```bash
 $ DATABASE_URL=postgres://postgres:postgres@127.0.0.1:55440/adonis_nest pnpm migration:up
@@ -47,7 +47,7 @@ Application startup does not migrate. The migrations create `users` and `session
 
 Terminate HTTPS at one reverse proxy. Forward `X-Forwarded-Proto: https` and the public `Host`. In production the session cookie is `Secure`, and it is set only when that forwarded protocol is `https`.
 
-The app trusts one proxy hop (`trust proxy` is `1`, not `true`). The Node port must not be reachable except through that proxy, because a direct client can still set `X-Forwarded-Proto`. The origin check uses `Host`, not `X-Forwarded-Host`.
+By default, production trusts one proxy hop and other environments trust none. Set `TRUST_PROXY=false` to keep that production hop off, or `TRUST_PROXY=1` to opt in outside production. `TRUST_PROXY=true` is rejected. Turning the hop off in production does not turn off the `Secure` cookie: forwarded protocol headers are ignored, so the cookie is not set on the plain connection from the proxy. The Node port must not be reachable except through that proxy, because a direct client can still set `X-Forwarded-Proto`. The origin check uses `Host`, not `X-Forwarded-Host`.
 
 ## Compile and run the project
 

@@ -3,16 +3,14 @@ import {
   Controller,
   Get,
   HttpCode,
+  Inject,
   Post,
   Req,
   Res,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
+import { APP_CONFIG, type AppConfig } from '../config/app-config.js';
 import { issueCsrfToken } from '../csrf/issue-csrf-token.js';
-import {
-  sessionCookieName,
-  sessionCookieSettings,
-} from '../session/session-options.js';
 import {
   VineValidationPipe,
   type VineOutput,
@@ -22,7 +20,10 @@ import { loginUser } from './login-user.js';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    @Inject(APP_CONFIG) private readonly config: AppConfig,
+  ) {}
 
   @Get('csrf')
   csrf(@Req() request: Request) {
@@ -51,6 +52,9 @@ export class AuthController {
     @Res({ passthrough: true }) response: Response,
   ) {
     await this.auth.logout(request);
-    response.clearCookie(sessionCookieName, sessionCookieSettings());
+    response.clearCookie(
+      this.config.session.cookieName,
+      this.config.session.cookie,
+    );
   }
 }

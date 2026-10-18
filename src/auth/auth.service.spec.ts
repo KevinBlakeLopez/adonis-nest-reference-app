@@ -185,7 +185,9 @@ describe('AuthController logout', () => {
       logout: vi.fn().mockRejectedValue(new Error('destroy failed')),
     } as unknown as AuthService;
     const response = { clearCookie: vi.fn() };
-    const controller = new AuthController(auth);
+    const controller = new AuthController(auth, {
+      session: { cookieName: 'sid', cookie: {} },
+    } as never);
 
     await expect(
       controller.logout({} as Request, response as unknown as Response),

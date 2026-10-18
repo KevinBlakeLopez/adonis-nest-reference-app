@@ -5,7 +5,7 @@ import pg from 'pg';
 import request from 'supertest';
 import { App } from 'supertest/types.js';
 import { configureApp } from '../src/configure-app.js';
-import { sessionMaxAgeMs } from '../src/session/session-options.js';
+import { sessionMaxAgeMs } from '../src/config/app-config.js';
 import { AppModule } from '../src/app.module.js';
 import { User } from '../src/users/user.entity.js';
 import { resetDatabase } from './reset-database.js';

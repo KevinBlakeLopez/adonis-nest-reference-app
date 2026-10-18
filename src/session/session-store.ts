@@ -1,7 +1,7 @@
+import { Inject, Injectable, type OnApplicationShutdown } from '@nestjs/common';
 import connectPgSimple from 'connect-pg-simple';
 import session from 'express-session';
-import { Injectable, type OnApplicationShutdown } from '@nestjs/common';
-import { databaseUrl } from '../database/database-url.js';
+import { APP_CONFIG, type AppConfig } from '../config/app-config.js';
 
 type SessionStore = session.Store & {
   close(): Promise<void>;
@@ -16,9 +16,9 @@ const PgStore = connectPgSimple(session) as new (options: {
 export class SessionStoreHost implements OnApplicationShutdown {
   readonly store: SessionStore;
 
-  constructor() {
+  constructor(@Inject(APP_CONFIG) config: AppConfig) {
     this.store = new PgStore({
-      conString: databaseUrl(),
+      conString: config.databaseUrl,
       createTableIfMissing: false,
     });
   }
