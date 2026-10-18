@@ -31,6 +31,18 @@
 $ pnpm install
 ```
 
+## Database migrations
+
+Set `DATABASE_URL`, then apply migrations once, as a deployment step, before starting the new application instances:
+
+```bash
+$ DATABASE_URL=postgres://postgres:postgres@127.0.0.1:55440/adonis_nest pnpm migration:up
+```
+
+Do not run that command in every replica. MikroORM does not serialize concurrent migrators. If a run fails while another migrator may have been active, inspect `mikro_orm_migrations` and the schema before running it again. A `23505` error does not by itself mean the other run finished.
+
+Application startup does not migrate.
+
 ## Compile and run the project
 
 ```bash
