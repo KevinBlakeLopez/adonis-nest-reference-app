@@ -1,142 +1,192 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# nest-adonis-spike
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A NestJS application with VineJS validation, scrypt password hashing, MikroORM on PostgreSQL, cookie sessions, and CSRF protection.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+This repository was exercised with Node.js 24.14.1 and pnpm 12.8.1.
 
-## Description
+## Requirements
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+- Node.js `>= 22.17.0`. MikroORM 7.2.5 declares that engine. NestJS 12 itself allows Node.js 20, which is not sufficient here.
+- pnpm 12.8.1, the version used with the committed lockfile (`lockfileVersion` 9.0). Install with `pnpm install --frozen-lockfile`.
+- PostgreSQL reached through a `postgres://` or `postgresql://` URL. This procedure was run against PostgreSQL 18. The session store's published package documents PostgreSQL 9.5 or newer; that lower bound was not retested here.
 
-## Project setup
+Create an empty database before migrating. The examples below use a local server at `127.0.0.1:55440`.
 
-```bash
-$ pnpm install
-```
+## Environment
 
-## Deployment
+| Variable | Required | Used by | Meaning |
+| --- | --- | --- | --- |
+| `DATABASE_URL` | Always | Server and `pnpm migration:up` | PostgreSQL URL. Startup and migrations reject a missing or non-postgres URL. |
+| `SESSION_SECRET` | Server only | Server | Signs the `sid` cookie. At least 32 characters. Never commit it. |
+| `NODE_ENV` | No | Server | `development` (default), `test`, or `production`. Any other value fails startup. |
+| `PORT` | No | Server | HTTP port. Default `3000`. An integer from 1 to 65535. |
+| `TRUST_PROXY` | No | Server | `1` trusts one reverse-proxy hop. `false` or `0` trusts none. Unset means one hop in production and none otherwise. `true` is rejected. |
 
-Set `DATABASE_URL` and `SESSION_SECRET` in the environment. `SESSION_SECRET` must be at least 32 characters. It signs the session cookie. Do not commit it. Startup validates both before it opens a port. Invalid configuration names the variable and does not print the secret or the database URL. `NODE_ENV` may be omitted, `development`, `test`, or `production`. Any other value fails startup.
+`pnpm migration:up` reads `DATABASE_URL` only. It does not read `SESSION_SECRET`, `PORT`, or `TRUST_PROXY`.
 
-Apply migrations once, before starting the new application instances. `pnpm migration:up` validates `DATABASE_URL` only. It does not require `SESSION_SECRET`, `PORT`, or `TRUST_PROXY`.
+Invalid configuration is printed as a list of variable names and rules. The secret and the database URL are not included in that error.
+
+## Install
 
 ```bash
-$ DATABASE_URL=postgres://postgres:postgres@127.0.0.1:55440/adonis_nest pnpm migration:up
+pnpm install --frozen-lockfile
 ```
 
-Do not run that command in every replica. MikroORM does not serialize concurrent migrators. If a run fails while another migrator may have been active, inspect `mikro_orm_migrations` and the schema before running it again. A `23505` error does not by itself mean the other run finished.
+This installs development dependencies. `pnpm migration:up` and `pnpm build` need the Nest CLI from those dependencies. Do not use `pnpm install --prod` for the steps below.
 
-Application startup does not migrate. The migrations create `users` and `session`. The session store does not create its table.
-
-Terminate HTTPS at one reverse proxy. Forward `X-Forwarded-Proto: https` and the public `Host`. In production the session cookie is `Secure`, and it is set only when that forwarded protocol is `https`.
-
-By default, production trusts one proxy hop and other environments trust none. Set `TRUST_PROXY=false` to keep that production hop off, or `TRUST_PROXY=1` to opt in outside production. `TRUST_PROXY=true` is rejected. Turning the hop off in production does not turn off the `Secure` cookie: forwarded protocol headers are ignored, so the cookie is not set on the plain connection from the proxy. The Node port must not be reachable except through that proxy, because a direct client can still set `X-Forwarded-Proto`. The origin check uses `Host`, not `X-Forwarded-Host`.
-
-## Compile and run the project
+## Database setup and migrations
 
 ```bash
-# development
-$ pnpm run start
-
-# watch mode
-$ pnpm run start:dev
-
-# production mode
-$ pnpm run start:prod
+export DATABASE_URL=postgres://postgres:postgres@127.0.0.1:55440/adonis_nest
+pnpm migration:up
 ```
 
-## Run tests
+The command builds the project, then applies pending MikroORM migrations. The first run creates `users`, `session`, and `notes`. A second run prints `No pending migrations`.
+
+Run migrations once, as a deployment step, before starting new instances. Do not run them in every replica. MikroORM does not serialize concurrent migrators. If a run fails while another migrator may have been active, inspect `mikro_orm_migrations` and the schema before running it again. A `23505` error does not by itself mean the other run finished.
+
+Application startup does not migrate. The session store does not create `session`.
+
+## Start
+
+Development:
 
 ```bash
-# unit tests
-$ pnpm run test
-
-# e2e tests
-$ pnpm run test:e2e
-
-# test coverage
-$ pnpm run test:cov
+export DATABASE_URL=postgres://postgres:postgres@127.0.0.1:55440/adonis_nest
+export SESSION_SECRET=replace-with-at-least-32-random-characters
+pnpm start:dev
 ```
 
-## Deployment
-
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Production mode, after `pnpm migration:up` or `pnpm build` has produced `dist/`:
 
 ```bash
-$ pnpm install -g @nestjs/mau
-$ mau deploy
+export NODE_ENV=production
+export DATABASE_URL=postgres://postgres:postgres@127.0.0.1:55440/adonis_nest
+export SESSION_SECRET=replace-with-at-least-32-random-characters
+pnpm start:prod
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+The server listens on port 3000 unless `PORT` is set. `GET /` returns `Hello World!` and does not require a session.
 
-## Observability
+Outside production the `sid` cookie is HTTP-only and `SameSite=Lax`, and it is not `Secure`. In production the cookie is also `Secure`, and it is set only when the request is HTTPS. Behind the one trusted proxy, that means `X-Forwarded-Proto: https`.
 
-In production applications, observability is essential for understanding how your system behaves, detecting issues early, and maintaining reliable performance.
+Sessions expire after two hours. The PostgreSQL `session.expire` column enforces that lifetime.
 
-[NestJS Observe](https://observe.nestjs.com) automatically instruments your NestJS application, giving you deep visibility into your system with minimal setup:
+## API
 
-- **Distributed tracing:** Follow requests across services and understand how they flow through your system.
-- **Waterfall analysis:** Visualize request execution and identify slow operations, bottlenecks, and unexpected delays.
-- **Performance analysis:** Analyze application performance in real time and quickly pinpoint areas that need optimization.
-- **Metrics:** Track key application and infrastructure metrics to understand system health and performance trends.
-- **Logging:** Centralize and correlate logs with traces and other telemetry to make debugging easier.
-- **Error tracking:** Detect errors quickly and investigate their root causes with the surrounding context.
-- **SLA monitoring:** Track service-level objectives and identify when your application is approaching or exceeding defined thresholds.
-- **Alarms and alerts:** Set up alerts for critical errors, performance degradation, SLA violations, and other anomalies so your team can react quickly.
+Send `Content-Type: application/json`. Send the `sid` cookie returned by the server. Send `X-CSRF-Token` on `POST`, `PATCH`, and `DELETE`. `GET` does not require that header.
 
-To add it to this project:
+A missing or invalid CSRF token is HTTP 403 `{ "message": "Invalid CSRF token" }`. An anonymous call to an authenticated route is HTTP 401 `{ "message": "Authentication required" }`. Vine validation failures are HTTP 422 `{ "statusCode": 422, "errors": [...] }`. Each error has `message`, `rule`, and `field`.
+
+### Registration
+
+`POST /users` requires a CSRF token and does not require login.
 
 ```bash
-$ pnpm install @nestjs/observe
+curl -c cookies.txt http://127.0.0.1:3000/auth/csrf
 ```
 
-Then follow the [setup guide](https://docs.nestjs.com/observability/overview) - it takes a single import and an app key.
+The body is `{ "csrfToken": "..." }`.
 
-The free plan needs no payment details and covers 300,000 events a month. You can also browse the [live demo](https://www.observe-demo.nestjs.com/dashboard) first - the whole dashboard over a busy service's data, with nothing to install.
+```bash
+curl -b cookies.txt -c cookies.txt \
+  -H 'content-type: application/json' \
+  -H 'x-csrf-token: THE_TOKEN_FROM_THE_PREVIOUS_RESPONSE' \
+  -d '{"email":"ada@example.com","password":"correct-horse"}' \
+  http://127.0.0.1:3000/users
+```
 
-## Resources
+Success is HTTP 201 `{ "id": 1, "email": "ada@example.com" }`. The password must be at least 8 characters. A duplicate email is HTTP 409 `{ "message": "Email is already registered" }`. The response does not include the password hash.
 
-Check out a few resources that may come in handy when working with NestJS:
+### Login
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Auto-instrument your application with [NestJS Observe](https://observe.nestjs.com). Distributed tracing, metrics, and logging made easy. Error tracking and performance monitoring for your NestJS applications.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+`POST /auth/login` requires the anonymous session's CSRF token.
 
-## Support
+```bash
+curl -b cookies.txt -c cookies.txt \
+  -H 'content-type: application/json' \
+  -H 'x-csrf-token: THE_ANONYMOUS_TOKEN' \
+  -d '{"email":"ada@example.com","password":"correct-horse"}' \
+  http://127.0.0.1:3000/auth/login
+```
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+Success is HTTP 200 `{ "id": 1, "email": "ada@example.com", "csrfToken": "..." }`. Use this new `csrfToken` and the new `sid` cookie for later mutating requests. The anonymous token no longer works. Unknown emails and wrong passwords both return HTTP 401 `{ "message": "Authentication failed" }`.
 
-## Stay in touch
+`GET /auth/me` returns `{ "id": 1, "email": "ada@example.com" }` for that session.
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+### Logout
 
-## License
+`POST /auth/logout` requires the authenticated CSRF token. Success is HTTP 204. The server deletes the session row. A later `GET /auth/me` with the old cookie is HTTP 401.
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+### Notes
+
+Every notes route requires an authenticated session. Create, update, and delete also require the CSRF token. A note that does not exist, or that belongs to someone else, is HTTP 404 `{ "message": "Note not found" }`.
+
+```bash
+curl -b cookies.txt -c cookies.txt \
+  -H 'content-type: application/json' \
+  -H 'x-csrf-token: THE_LOGIN_TOKEN' \
+  -d '{"title":"First","body":"hello"}' \
+  http://127.0.0.1:3000/notes
+```
+
+Success is HTTP 201:
+
+```json
+{ "id": 1, "title": "First", "body": "hello", "createdAt": "...", "updatedAt": "..." }
+```
+
+`title` is required, trimmed, and at most 200 characters. `body` is a string. The response does not include `userId`. `GET /notes` lists only the signed-in user's notes, oldest first. `GET /notes/1` returns one owned note.
+
+```bash
+curl -b cookies.txt \
+  -H 'content-type: application/json' \
+  -H 'x-csrf-token: THE_LOGIN_TOKEN' \
+  -X PATCH \
+  -d '{"title":"Second","body":"changed"}' \
+  http://127.0.0.1:3000/notes/1
+```
+
+Success is HTTP 200 with the updated note. `curl` does not send `PATCH` unless `-X PATCH` is set.
+
+```bash
+curl -b cookies.txt -o /dev/null -w '%{http_code}\n' \
+  -H 'x-csrf-token: THE_LOGIN_TOKEN' \
+  -X DELETE \
+  http://127.0.0.1:3000/notes/1
+```
+
+`DELETE` returns HTTP 204.
+
+## Tests
+
+Unit tests do not need PostgreSQL:
+
+```bash
+pnpm test
+```
+
+PostgreSQL integration tests need `DATABASE_URL`. `vitest.config.e2e.ts` supplies a test-only `SESSION_SECRET`. Several integration tests run `drop schema if exists public cascade` against that database. Point `DATABASE_URL` at a disposable database.
+
+```bash
+export DATABASE_URL=postgres://postgres:postgres@127.0.0.1:55440/adonis_nest_test
+pnpm test:e2e
+```
+
+## Production
+
+`SESSION_SECRET` must be at least 32 characters and must not be committed. Changing it invalidates existing session cookies.
+
+Terminate HTTPS at one reverse proxy. Forward `X-Forwarded-Proto: https` and the public `Host` header. The origin check compares `Origin` with `Host`. It does not use `X-Forwarded-Host`.
+
+In production the process sets Express `trust proxy` to `1`. That trusts `X-Forwarded-Proto` from whoever can connect to the Node port. Do not expose that port except to the proxy. `TRUST_PROXY=false` turns the hop off. The `Secure` cookie stays enabled, so proxied HTTP requests will not receive a session cookie. `TRUST_PROXY=1` outside production opts into the same hop. `TRUST_PROXY=true` is rejected.
+
+## Known limitations
+
+- Fetch Metadata CSRF allows a request that sends neither `Sec-Fetch-Site` nor `Origin`. The session token is what rejects a mutating request from a non-browser client.
+- A route registered directly on Express, outside a Nest controller, does not pass the CSRF guard or the authentication guard.
+- Login is not rate-limited.
+- Concurrent `pnpm migration:up` processes are not serialized. Do not treat PostgreSQL `23505` as success.
+- `connect-pg-simple` 10.0.0 was last published on 13 September 2024. Expiration behavior was checked against that published source and against this application's tests.
+- Session-secret rotation is not implemented. Replacing `SESSION_SECRET` signs out every user.
+- The `Secure` cookie and proxy headers were tested with `X-Forwarded-Proto` on an HTTP test server, not through a separate TLS proxy.
