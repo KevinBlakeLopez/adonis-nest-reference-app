@@ -1,4 +1,4 @@
-# nest-adonis-spike
+# adonis-nest-reference-app
 
 A NestJS application with VineJS validation, scrypt password hashing, MikroORM on PostgreSQL, cookie sessions, and CSRF protection.
 

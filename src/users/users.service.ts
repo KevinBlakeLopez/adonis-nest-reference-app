@@ -19,9 +19,9 @@ export class UsersService {
    * Persists one user. A duplicate email is a constraint failure and is not
    * caught and then committed.
    *
-   * Deferred: a `beforeTransactionCommit` probe (`commitGuard`). That
-   * subscriber covers a caught statement error followed by COMMIT, which this
-   * method does not do.
+   * Not needed: a `commitGuard` subscriber covered a caught statement error
+   * followed by COMMIT, which this method does not do, and MikroORM 7.2.6
+   * rejects that COMMIT itself (see `test/commit-rollback.e2e-spec.ts`).
    */
   async register(input: { email: string; password: string }): Promise<RegisteredUser> {
     const passwordHash = await this.passwords.make(input.password);
