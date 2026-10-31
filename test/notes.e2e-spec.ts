@@ -242,7 +242,9 @@ describe('notes', () => {
   });
 });
 
-async function prepareDatabaseWithUsersAndSession(orm: MikroORM): Promise<void> {
+async function prepareDatabaseWithUsersAndSession(
+  orm: MikroORM,
+): Promise<void> {
   const connection = orm.em.getConnection();
   await connection.execute('drop schema if exists public cascade');
   await connection.execute('create schema public');
