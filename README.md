@@ -79,6 +79,8 @@ Send `Content-Type: application/json`. Send the `sid` cookie returned by the ser
 
 A missing or invalid CSRF token is HTTP 403 `{ "message": "Invalid CSRF token" }`. An anonymous call to an authenticated route is HTTP 401 `{ "message": "Authentication required" }`. Vine validation failures are HTTP 422 `{ "statusCode": 422, "errors": [...] }`. Each error has `message`, `rule`, and `field`.
 
+Other errors use Nest's default body, for example `{ "message": "Order not found", "error": "Not Found", "statusCode": 404 }`. The error bodies in this README show only `message`.
+
 ### Registration
 
 `POST /users` requires a CSRF token and does not require login.
