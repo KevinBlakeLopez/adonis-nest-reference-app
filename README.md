@@ -194,6 +194,8 @@ Dispatching an outbox row inserts a `dispatches` row and sets `outbox.processed_
 
 The server dispatches only when `WORKER_POLL_MS` is set. It then polls in the same process. Each poll dispatches rows, oldest first, until none is free, and the next poll starts after that one finishes. Each claim locks its row with `FOR UPDATE SKIP LOCKED`, so several instances can poll one database without dispatching a row twice. A claim that does not commit leaves the row pending. With `WORKER_POLL_MS` unset, orders stay `pending`.
 
+On `SIGTERM` or `SIGINT` the server stops polling, waits for a claim in progress to commit, then closes its database connections and exits. A process killed without a signal it can handle, such as `SIGKILL`, leaves that claim uncommitted and its row pending.
+
 Polling does not migrate. Run `pnpm migration:up` before starting instances that serve orders.
 
 ## Tests
@@ -224,7 +226,6 @@ In production the process sets Express `trust proxy` to `1`. That trusts `X-Forw
 - Fetch Metadata CSRF allows a request that sends neither `Sec-Fetch-Site` nor `Origin`. The session token is what rejects a mutating request from a non-browser client.
 - A route registered directly on Express, outside a Nest controller, does not pass the CSRF guard or the authentication guard.
 - Login is not rate-limited.
-- `app.close()` waits for an outbox claim in progress before closing the database connection. The server does not enable Nest shutdown hooks, so `SIGTERM` does not wait. That claim does not commit, and its row stays pending.
 - Concurrent `pnpm migration:up` processes are not serialized. Do not treat PostgreSQL `23505` as success.
 - `connect-pg-simple` 10.0.0 was last published on 13 September 2024. Expiration behavior was checked against that published source and against this application's tests.
 - Session-secret rotation is not implemented. Replacing `SESSION_SECRET` signs out every user.
