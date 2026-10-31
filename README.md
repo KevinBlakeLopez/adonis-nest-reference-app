@@ -1,5 +1,7 @@
 # adonis-nest-reference-app
 
+[![CI](https://github.com/KevinBlakeLopez/adonis-nest-reference-app/actions/workflows/ci.yml/badge.svg)](https://github.com/KevinBlakeLopez/adonis-nest-reference-app/actions/workflows/ci.yml)
+
 A NestJS application with VineJS validation, scrypt password hashing, MikroORM on PostgreSQL, cookie sessions, and CSRF protection.
 
 This repository was exercised with Node.js 24.14.1 and pnpm 12.8.1.
@@ -212,6 +214,8 @@ PostgreSQL integration tests need `DATABASE_URL`. `vitest.config.e2e.ts` supplie
 export DATABASE_URL=postgres://postgres:postgres@127.0.0.1:55440/adonis_nest_test
 pnpm test:e2e
 ```
+
+CI runs lint, the build type check, the unit tests and the PostgreSQL 18 integration tests on every push to `master` and every pull request. See `.github/workflows/ci.yml`.
 
 ## Production
 
