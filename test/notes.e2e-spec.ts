@@ -25,7 +25,10 @@ describe('notes', () => {
     orm = app.get(MikroORM);
     await prepareDatabaseWithUsersAndSession(orm);
     const applied = await applyMigrations();
-    expect(applied).toEqual(['Migration20261018070000_create_notes']);
+    expect(applied).toEqual([
+      'Migration20261018070000_create_notes',
+      'Migration20261031100000_create_orders',
+    ]);
     expect(await applyMigrations()).toEqual([]);
   });
 
@@ -58,6 +61,7 @@ describe('notes', () => {
         'Migration20261017160000_create_users',
         'Migration20261018060000_create_session',
         'Migration20261018070000_create_notes',
+        'Migration20261031100000_create_orders',
       ]);
       const constraint = await client.query<{ definition: string }>(
         `select pg_get_constraintdef(oid) as definition
