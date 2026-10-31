@@ -215,7 +215,7 @@ export DATABASE_URL=postgres://postgres:postgres@127.0.0.1:55440/adonis_nest_tes
 pnpm test:e2e
 ```
 
-CI runs lint, the build type check, the unit tests and the PostgreSQL 18 integration tests on every push to `master` and every pull request. See `.github/workflows/ci.yml`.
+CI runs lint, a Prettier formatting check, the build type check, the unit tests and the PostgreSQL 18 integration tests on every push to `master` and every pull request. See `.github/workflows/ci.yml`.
 
 ## Production
 
