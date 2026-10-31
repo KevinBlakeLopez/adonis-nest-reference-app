@@ -135,6 +135,25 @@ describe('application configuration', () => {
     ).rejects.toThrow(/SESSION_SECRET must be at least 32 characters/);
   });
 
+  it('leaves the outbox poller off unless WORKER_POLL_MS is a positive integer', async () => {
+    const base = { DATABASE_URL: databaseUrl, SESSION_SECRET: sessionSecret };
+    expect((await loadAppConfig(base)).workerPollMs).toBeUndefined();
+    expect(
+      (await loadAppConfig({ ...base, WORKER_POLL_MS: ' ' })).workerPollMs,
+    ).toBeUndefined();
+    expect(
+      (await loadAppConfig({ ...base, WORKER_POLL_MS: '500' })).workerPollMs,
+    ).toBe(500);
+
+    for (const invalid of ['0', '-1', '1.5', 'soon']) {
+      await expect(
+        loadAppConfig({ ...base, WORKER_POLL_MS: invalid }),
+      ).rejects.toThrow(
+        /WORKER_POLL_MS must be a positive integer of milliseconds/,
+      );
+    }
+  });
+
   it('does not include secret values in configuration errors', async () => {
     const secret = 'super-secret-value-that-must-not-leak';
     const password = 's3cret-db-password';

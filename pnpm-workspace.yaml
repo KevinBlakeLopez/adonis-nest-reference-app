@@ -1,0 +1,5 @@
+minimumReleaseAgeExclude:
+  - '@mikro-orm/core@7.2.6'
+  - '@mikro-orm/migrations@7.2.6'
+  - '@mikro-orm/postgresql@7.2.6'
+  - '@mikro-orm/sql@7.2.6'

@@ -5,6 +5,7 @@ import { AppService } from './app.service.js';
 import { AppConfigModule } from './config/app-config.module.js';
 import { DatabaseModule } from './database/database.module.js';
 import { NotesModule } from './notes/notes.module.js';
+import { OrdersModule } from './orders/orders.module.js';
 import { SessionModule } from './session/session.module.js';
 import { UsersModule } from './users/users.module.js';
 
@@ -16,6 +17,7 @@ import { UsersModule } from './users/users.module.js';
     UsersModule,
     AuthModule,
     NotesModule,
+    OrdersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
