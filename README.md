@@ -6,7 +6,7 @@ This repository was exercised with Node.js 24.14.1 and pnpm 12.8.1.
 
 ## Requirements
 
-- Node.js `>= 22.17.0`. MikroORM 7.2.5 declares that engine. NestJS 12 itself allows Node.js 20, which is not sufficient here.
+- Node.js `>= 22.17.0`. MikroORM 7.2.6 declares that engine. NestJS 12 itself allows Node.js 20, which is not sufficient here.
 - pnpm 12.8.1, the version used with the committed lockfile (`lockfileVersion` 9.0). Install with `pnpm install --frozen-lockfile`.
 - PostgreSQL reached through a `postgres://` or `postgresql://` URL. This procedure was run against PostgreSQL 18. The session store's published package documents PostgreSQL 9.5 or newer; that lower bound was not retested here.
 
@@ -21,8 +21,9 @@ Create an empty database before migrating. The examples below use a local server
 | `NODE_ENV` | No | Server | `development` (default), `test`, or `production`. Any other value fails startup. |
 | `PORT` | No | Server | HTTP port. Default `3000`. An integer from 1 to 65535. |
 | `TRUST_PROXY` | No | Server | `1` trusts one reverse-proxy hop. `false` or `0` trusts none. Unset means one hop in production and none otherwise. `true` is rejected. |
+| `WORKER_POLL_MS` | No | Server | Outbox poll interval in milliseconds, a positive integer. Unset leaves the poller off. |
 
-`pnpm migration:up` reads `DATABASE_URL` only. It does not read `SESSION_SECRET`, `PORT`, or `TRUST_PROXY`.
+`pnpm migration:up` reads `DATABASE_URL` only. It does not read `SESSION_SECRET`, `PORT`, `TRUST_PROXY`, or `WORKER_POLL_MS`.
 
 Invalid configuration is printed as a list of variable names and rules. The secret and the database URL are not included in that error.
 
@@ -41,7 +42,7 @@ export DATABASE_URL=postgres://postgres:postgres@127.0.0.1:55440/adonis_nest
 pnpm migration:up
 ```
 
-The command builds the project, then applies pending MikroORM migrations. The first run creates `users`, `session`, and `notes`. A second run prints `No pending migrations`.
+The command builds the project, then applies pending MikroORM migrations. The first run creates `users`, `session`, `notes`, `orders`, `outbox`, and `dispatches`. A second run prints `No pending migrations`.
 
 Run migrations once, as a deployment step, before starting new instances. Do not run them in every replica. MikroORM does not serialize concurrent migrators. If a run fails while another migrator may have been active, inspect `mikro_orm_migrations` and the schema before running it again. A `23505` error does not by itself mean the other run finished.
 
@@ -158,6 +159,41 @@ curl -b cookies.txt -o /dev/null -w '%{http_code}\n' \
 
 `DELETE` returns HTTP 204.
 
+### Orders
+
+Every orders route requires an authenticated session. `POST /orders` also requires the CSRF token and an `Idempotency-Key` header of 1 to 255 characters.
+
+```bash
+curl -b cookies.txt -c cookies.txt \
+  -H 'content-type: application/json' \
+  -H 'x-csrf-token: THE_LOGIN_TOKEN' \
+  -H 'idempotency-key: order-1' \
+  -d '{"sku":"widget","quantity":2}' \
+  http://127.0.0.1:3000/orders
+```
+
+Success is HTTP 201:
+
+```json
+{ "id": 1, "sku": "widget", "quantity": 2, "createdAt": "..." }
+```
+
+`sku` is 1 to 200 characters and is not trimmed. `quantity` is an integer of at least 1. A missing `Idempotency-Key` is HTTP 422. The response does not include `userId`.
+
+HTTP 201 means the order and its outbox row committed in one transaction. The response does not wait for dispatch. The same user sending the same `Idempotency-Key` again gets HTTP 200 with the stored order, including its original `sku` and `quantity`, even if the new body differs. No second order or outbox row is created. Keys are scoped to the user.
+
+If a database statement in that transaction throws, the transaction rolls back and the request fails with HTTP 500. No order or outbox row remains. A duplicate key is the one error the service handles, and it reads the stored order only after the rollback. This depends on MikroORM 7.2.6, which rejects a `COMMIT` that PostgreSQL answers with `ROLLBACK` ([mikro-orm/mikro-orm#8499](https://github.com/mikro-orm/mikro-orm/pull/8499)), where 7.2.5 reported that commit as success.
+
+`GET /orders/1` returns the order with `"dispatch": "pending"` or `"dispatch": "done"`. An order that does not exist, or that belongs to someone else, is HTTP 404 `{ "message": "Order not found" }`.
+
+### Dispatch
+
+Dispatching an outbox row inserts a `dispatches` row and sets `outbox.processed_at` in one transaction. It does not send email or call another service.
+
+The server dispatches only when `WORKER_POLL_MS` is set. It then polls in the same process. Each poll dispatches rows, oldest first, until none is free, and the next poll starts after that one finishes. Each claim locks its row with `FOR UPDATE SKIP LOCKED`, so several instances can poll one database without dispatching a row twice. A claim that does not commit leaves the row pending. With `WORKER_POLL_MS` unset, orders stay `pending`.
+
+Polling does not migrate. Run `pnpm migration:up` before starting instances that serve orders.
+
 ## Tests
 
 Unit tests do not need PostgreSQL:
@@ -186,6 +222,7 @@ In production the process sets Express `trust proxy` to `1`. That trusts `X-Forw
 - Fetch Metadata CSRF allows a request that sends neither `Sec-Fetch-Site` nor `Origin`. The session token is what rejects a mutating request from a non-browser client.
 - A route registered directly on Express, outside a Nest controller, does not pass the CSRF guard or the authentication guard.
 - Login is not rate-limited.
+- `app.close()` waits for an outbox claim in progress before closing the database connection. The server does not enable Nest shutdown hooks, so `SIGTERM` does not wait. That claim does not commit, and its row stays pending.
 - Concurrent `pnpm migration:up` processes are not serialized. Do not treat PostgreSQL `23505` as success.
 - `connect-pg-simple` 10.0.0 was last published on 13 September 2024. Expiration behavior was checked against that published source and against this application's tests.
 - Session-secret rotation is not implemented. Replacing `SESSION_SECRET` signs out every user.

@@ -291,6 +291,36 @@ describe('orders', () => {
       sku: 'widget',
     });
   });
+
+  it('rolls back the order when the outbox insert fails', async () => {
+    const owner = await login(app, 'outbox-failure-orders@example.com');
+    const client = await connect();
+    try {
+      await client.query(
+        'alter table outbox add constraint outbox_rejects_all check (false) not valid',
+      );
+      await owner.agent
+        .post('/orders')
+        .set('X-CSRF-Token', owner.csrfToken)
+        .set('Idempotency-Key', 'outbox-fails')
+        .send({ sku: 'widget', quantity: 1 })
+        .expect(500);
+    } finally {
+      await client.query(
+        'alter table outbox drop constraint if exists outbox_rejects_all',
+      );
+      await client.end();
+    }
+
+    expect(await countOrdersFor(owner.userId)).toBe(0);
+    const retried = await owner.agent
+      .post('/orders')
+      .set('X-CSRF-Token', owner.csrfToken)
+      .set('Idempotency-Key', 'outbox-fails')
+      .send({ sku: 'widget', quantity: 1 })
+      .expect(201);
+    expect(await countOutboxFor(retried.body.id)).toBe(1);
+  });
 });
 
 function column(
