@@ -27,6 +27,7 @@ const environment = vine.compile(
     PORT: vine.number().min(1).max(65535).withoutDecimals().optional(),
     DATABASE_URL: databaseUrlField(),
     SESSION_SECRET: vine.string().minLength(sessionSecretMinLength),
+    WORKER_POLL_MS: vine.number().min(1).withoutDecimals().optional(),
   }),
 );
 
@@ -53,6 +54,8 @@ export type AppConfig = {
    * `1` trusts one reverse-proxy hop. Unrestricted trust is not representable.
    */
   trustProxy: false | 1;
+  /** Outbox poll interval. `undefined` leaves the in-process poller off. */
+  workerPollMs: number | undefined;
 };
 
 export const APP_CONFIG = Symbol('APP_CONFIG');
@@ -104,6 +107,7 @@ export async function loadAppConfig(
       PORT: blankToUndefined(env.PORT),
       DATABASE_URL: env.DATABASE_URL,
       SESSION_SECRET: env.SESSION_SECRET,
+      WORKER_POLL_MS: blankToUndefined(env.WORKER_POLL_MS),
     });
   } catch (error) {
     if (!(error instanceof ValidationError)) {
@@ -146,6 +150,7 @@ export async function loadAppConfig(
       },
     },
     trustProxy,
+    workerPollMs: parsed.WORKER_POLL_MS,
   };
 }
 
@@ -199,6 +204,9 @@ function validationMessages(error: ValidationError): string[] {
     }
     if (field === 'PORT') {
       return 'PORT must be an integer from 1 to 65535';
+    }
+    if (field === 'WORKER_POLL_MS') {
+      return 'WORKER_POLL_MS must be a positive integer of milliseconds';
     }
     return 'Application configuration is invalid';
   });
